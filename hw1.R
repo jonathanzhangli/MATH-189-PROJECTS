@@ -121,13 +121,14 @@ prop.test(c(lbwt_smokers, lbwt_nonsmokers),
 # -------
 # 3.1 
 # -------
-mod <- glm(smoke ~ bwt + gestation + parity + age + height + weight,  
+df$low_bwt <- as.numeric(df$bwt <= 88)
+mod <- glm(smoke ~ low_bwt + gestation + parity + age + height + weight,  
            family = "binomial", data = df)
 
 summary(mod)
-bwt.coef <- mod$coefficients["bwt"] #p-value: <2e-16 ***
-log.odds <- exp(bwt.coef) # 0.9701447 
-                          # (i.e. smokers are 0.97 times more likely to have a 
+low_bwt.coef <- mod$coefficients["low_bwt"] #p-value: <2e-16 ***
+log.odds <- exp(low_bwt.coef) #2,94 
+                          # (i.e. smokers are 2.94 times more likely to have a 
                           # baby w/ low birth weight)
 
 # -------
