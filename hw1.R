@@ -11,20 +11,37 @@ df = read.delim("babies.txt", sep = "")
 
 # split into two dataframes for smokers and nonsmokers
 
-# check smoke, clean up mistakes
+# check dataset, clean up mistakes
 table(df$smoke)
 df$smoke[df$smoke == 9] <- 0 #recode random 9 to 0
 
 smokers = df[df$smoke == 1,]
 nonsmokers = df[df$smoke == 0,]
 
+# create skewness and kurtosis functions
+skewness <- function(X) {
+  Xbar = mean(X)
+  Z <- (X - Xbar) / sd(X)
+  return(mean(Z^3))
+}
+
+kurtosis <- function(X) {
+  Xbar = mean(X)
+  Z <- (X - Xbar) / sd(X)
+  return(mean(Z^4))
+}
+
 # birthweight - smokers
 smokers_bwt = smokers$bwt
 summary(smokers_bwt)
+smokers_skew = skewness(smokers_bwt)
+smokers_kurtosis = kurtosis(smokers_bwt)
 
 # birthweight - nonsmokers
 nonsmokers_bwt = nonsmokers$bwt
 summary(nonsmokers_bwt)
+skewness(nonsmokers_bwt)
+kurtosis(nonsmokers_bwt)
 
 
 # ---------------------------------------------------------------------------
@@ -49,6 +66,21 @@ qqplot(x= smokers_bwt, y = nonsmokers_bwt,
 
 abline(0, 1, lty = "dashed", col = "gray")
 
+par(mfrow = c(1, 3))
+## qqnorm - check if is a normal distribution
+qqnorm(smokers_bwt, 
+       main = "Infant Birth Weights (Smokers) vs Normal Distribution",
+       xlab = "Normal Distribution", 
+       ylab = "Smokers")
+abline(0, 1, lty = "dashed", col = "gray")
+
+
+qqnorm(nonsmokers_bwt, 
+       main = "Infant Birth Weights (Nonsmokers) vs Normal Distribution",
+       xlab = "Normal Distribution", 
+       ylab = "Nonsmokers")
+abline(0, 1, lty = "dashed", col = "gray")
+
 # boxplot
 boxplot(smokers_bwt, nonsmokers_bwt, 
         names = c("Smokers", "Nonsmokers"),
@@ -57,7 +89,8 @@ boxplot(smokers_bwt, nonsmokers_bwt,
         ylab = "birthweight (oz)")
 
 # ---------------------------------------------------------------------------
-# 2.3
+# 2.3 Compare the incidence (frequency) of low-birth-weight babies for the 
+# two groups. How reliable do you think your estimates are? 
 # ---------------------------------------------------------------------------
 # number of low birth weights and size of each sample
 lbwt_smokers = length(smokers_bwt[smokers_bwt <= 88])
@@ -77,4 +110,31 @@ z = (phat_s - phat_n) / sqrt((pstar*qstar)/n_smokers +
                                (pstar*qstar)/n_nonsmokers )
 
 # calculate pvalue
-pvalue =  pnorm(x, lower = F) * 2
+pvalue =  pnorm(z, lower = F) * 2
+
+# check work
+obs = phat_s - phat_n
+pnorm(obs, lower.tail = F)
+prop.test(c(lbwt_smokers, lbwt_nonsmokers), 
+          c(n_smokers, n_nonsmokers), alternative = "greater")
+
+# -------
+# 3.1 
+# -------
+mod <- glm(smoke ~ bwt + gestation + parity + age + height + weight,  
+           family = "binomial", data = df)
+
+summary(mod)
+bwt.coef <- mod$coefficients["bwt"] #p-value: <2e-16 ***
+log.odds <- exp(bwt.coef) # 0.9701447 
+                          # (i.e. smokers are 0.97 times more likely to have a 
+                          # baby w/ low birth weight)
+
+# -------
+# 3.2 
+# -------
+t.test(nonsmokers$bwt, smokers$bwt, alternative = "greater")
+      # p-val: 2.2 e-16
+
+diff = mean(nonsmokers_bwt) - mean(smokers$bwt) 
+      # 8.98621 ounces which is about 254.755 g
