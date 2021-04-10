@@ -56,6 +56,25 @@ boxplot(smokers_bwt, nonsmokers_bwt,
         main = "Infant Birthweight (oz): Smokers vs Nonsmokers",
         ylab = "birthweight (oz)")
 
+# 2 mean T-test
+test = t.test(nonsmokers_bwt, smokers_bwt)
+t.test(nonsmokers_bwt, smokers_bwt)
+
+# Odds Ratio
+df_adjusted <- df
+df_adjusted$low[df_adjusted$bwt >= 88] <- 0
+df_adjusted$low[df_adjusted$bwt < 88] <- 1
+
+logodds <- glm(formula = low ~ smoke,family = binomial(link = "logit"), data = df_adjusted)
+summary(logodds) # the log odds are 1.4053. 
+
+# ----
+# QUESTION: What is the odds ratio that the mother is a smoker?
+# ANSWER: 4.0769
+
+odds_ratio <- exp(1.4053) #The odds ratio with e^1.4053 = 4.0769
+
+
 # ---------------------------------------------------------------------------
 # 2.3
 # ---------------------------------------------------------------------------
