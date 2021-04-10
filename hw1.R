@@ -88,24 +88,6 @@ boxplot(smokers_bwt, nonsmokers_bwt,
         main = "Infant Birthweight (oz): Smokers vs Nonsmokers",
         ylab = "birthweight (oz)")
 
-# 2 mean T-test
-test = t.test(nonsmokers_bwt, smokers_bwt)
-t.test(nonsmokers_bwt, smokers_bwt)
-
-# Odds Ratio
-df_adjusted <- df
-df_adjusted$low[df_adjusted$bwt >= 88] <- 0
-df_adjusted$low[df_adjusted$bwt < 88] <- 1
-
-logodds <- glm(formula = low ~ smoke,family = binomial(link = "logit"), data = df_adjusted)
-summary(logodds) # the log odds are 0.9807. 
-
-# ----
-# QUESTION: What is the odds ratio that the mother is a smoker?
-# ANSWER: 4.0769
-
-odds_ratio <- exp(0.9807) #The odds ratio with e^0.9807 = 2.666
-
 
 # ---------------------------------------------------------------------------
 # 2.3 Compare the incidence (frequency) of low-birth-weight babies for the 
@@ -141,7 +123,7 @@ prop.test(c(lbwt_smokers, lbwt_nonsmokers),
 # 3.1 
 # -------
 df$low_bwt <- as.numeric(df$bwt <= 88)
-mod <- glm(smoke ~ low_bwt + gestation + parity + age + height + weight,  
+mod <- glm(low_bwt ~ smoke + gestation + parity + age + height + weight,  
            family = "binomial", data = df)
 
 summary(mod)
@@ -149,6 +131,13 @@ low_bwt.coef <- mod$coefficients["low_bwt"] #p-value: <2e-16 ***
 log.odds <- exp(low_bwt.coef) #2,94 
                           # (i.e. smokers are 2.94 times more likely to have a 
                           # baby w/ low birth weight)
+log.odds.Intercept <- exp(8.729095)
+log.odds.smoke1 <- exp(1.058535)
+log.odds.gestation <- exp(-0.033075)
+log.odds.parity <- exp(-0.011258)
+log.odds.age <- exp(0.016399)
+log.odds.height <- exp(-0.048051)
+log.odds.weight <- exp(-0.003452)
 
 # -------
 # 3.2 
@@ -158,3 +147,4 @@ t.test(nonsmokers$bwt, smokers$bwt, alternative = "greater")
 
 diff = mean(nonsmokers_bwt) - mean(smokers$bwt) 
       # 8.98621 ounces which is about 254.755 g
+
