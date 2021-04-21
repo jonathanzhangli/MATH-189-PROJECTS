@@ -1,0 +1,250 @@
+---
+title: "HW 2"
+author: "Jonathan Li and Maya Lu"
+date: "4/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(patchwork)
+library(gmodels)
+library(tidyr)
+
+data <- read.table("videodata.txt", header=TRUE)
+data_pt2 <- read.table("videoMultiple.txt", header=TRUE)
+```
+
+### 2.1 Point and Interval Estimates: Proportion of Students who Played Video Games Week Prior to Survey
+
+* Point Estimate: 0.374
+* Interval Estimate: (0.217, 0.53)
+```{r}
+N = 314 # population size
+n = nrow(data) #sample size
+correction = sqrt((N - n) / (N))
+
+# point estimate: proportion of students who spent some time playing games
+played <- data$time > 0
+xbar <- mean(played)
+
+# find standard error
+sd.xbar <- sqrt(xbar * (1-xbar))
+se <- (sd.xbar / sqrt(n-1)) * correction
+
+# interval estimate: using 95 percent confidence
+z = 1.96 #z-score for 95% confidence interval
+width = z * sqrt( ( (xbar * (1- xbar) ) / (n-1) )
+                    *( (N-n) / N )
+                  )
+
+int = c(xbar - width, xbar + width)
+```
+
+### 2.2 Proportion of Students who Played Games vs. Reported Frequency of Play
+
+```{r}
+prop.table(table(data$freq))
+expected_frac <- 0.3076923 + 0.0989011
+```
+
+
+### 2.3 Point and Interval Estimates: Average Time Spent Playing Video Games
+
+* Point Estimate: 1.243
+* Interval Estimate: (0.684, 1.801)
+
+```{r}
+N = 314
+n = 91
+
+# point estimate
+xbar <-  mean(data$time)
+se <- (sd(data$time) / sqrt(n))
+  
+# interval estimate
+t = qt(0.025, df = 90, lower = F)
+s = sd(data$time)
+
+width = t * (s/sqrt(n)) 
+int = c(xbar - width, xbar + width)
+
+# interval estimate using simulation
+reps = 100000
+bootout = rep(NA, reps)
+
+for (i in 1:reps){
+  resample <- sample(data$time, size = n, replace = T)
+  xbar <- mean(resample)
+  bootout[i] <- xbar
+}
+
+df = data.frame(bootout)
+ggplot(data = df, aes(x = bootout)) + geom_histogram(bins = 15) +
+  ggtitle("Distribution of Average Time Spent Playing Video Games") +
+  geom_vline(xintercept = int[1], linetype = "dashed", col = "aquamarine3") +
+  geom_vline(xintercept = int[2], linetype = "dashed", col = "aquamarine3") +
+  xlab("Hours Spent Playing Video Games")
+
+quantile(bootout, c(0.025, .975))
+
+mean(bootout <= int[1] |  bootout >= int[2])
+```
+
+
+###2.4 Like/Dislike Games
+
+```{r}
+prop.table(table(data$like))
+data$enjoy <- 99
+data$enjoy[data$like == 4 | data$like == 5] <- 0
+data$enjoy[data$like == 2 | data$like == 3] <- 1
+
+prop.table(table(data$enjoy))
+prop.table(table(data$educ))
+
+# bar graph of attitude questions
+q1 <- c(6:10, 12)
+q2 <- 13:20
+
+# LIKE
+# Top five reasons why they liked 
+q1_props <- sort(colMeans(data_pt2[,q1], na.rm = T), decreasing = T)[1:5]
+q1_props <- round(q1_props, 2)
+labels <- c("Relaxation", "Feeling of Mastery", "Bored", "Graphics/Realism", "Mental Challenge")
+df <- data.frame(labels, q1_props, row.names = labels)
+ggplot(df, aes(x= labels, y = q1_props)) + 
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = q1_props), vjust = -0.5) +
+  theme_minimal() +
+  xlab("") + ylab("Proportion") + ggtitle("Why do you play the games you checked above?")
+
+#DISLIKE
+# get top five reasons
+q2_props <- sort(colMeans(data_pt2[,q2], na.rm = T), decreasing = T)[1:5]
+q2_props <- round(q2_props, 2)
+
+labels <- c("Too much time", "Costs too Much", "Pointless", "Frustrating", "Too many rules")
+df <- data.frame(labels, q2_props)
+ggplot(df, aes(x= labels, y = q2_props)) + 
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = q2_props), vjust = -0.5) +
+  theme_minimal() + ylim(c(0, 0.6))+
+  xlab("") + ylab("Proportion") + ggtitle("What don't you like about video games?")
+```
+
+
+
+### 2.5 Differences Between Those Who Like and Dislike
+``` {r}
+gender = CrossTable(data$enjoy, data$sex)
+math = CrossTable(data$math, data$enjoy)
+own = CrossTable(data$enjoy, data$own)
+home = CrossTable(data$home, data$enjoy)
+
+# create an indicator if someone is working
+data$works <- 0
+data$works[data$work > 0] <- 1
+work = CrossTable(data$enjoy, data$works)
+```
+
+
+
+```{r}
+# function that returns a dataframe of distribution across variable of interest
+create_bar <- function(cross_tab, binary, var_str) {
+  df <- data.frame(prop = cross_tab$prop.col[,binary], row.names = c("disliked", "liked", "NA"))
+  
+  return (
+    ggplot(data = df, aes(x= rownames(df), y = prop )) + 
+      ylim(c(0, 1.0)) +
+      geom_bar(stat = "identity", fill = "steelblue") + 
+      xlab("") + ylab("Proportion") + ggtitle(paste(var_str,"Opinion on Video Games")) +
+      theme_minimal() +  
+      geom_text(aes(label = round(prop, 2)), vjust = -0.5) 
+  )
+}
+
+create_bar2 <- function(cross_tab, binary, groups, var_str) {
+  df <- data.frame(prop = cross_tab$prop.row[binary,], row.names = c(groups[1], groups[2]))
+  
+  return (
+    ggplot(data = df, aes(x= rownames(df), y = prop )) + 
+      ylim(c(0, 1.0)) +
+      geom_bar(stat = "identity", fill = "steelblue") + 
+      xlab("") + ylab("Proportion") + 
+      ggtitle(paste("Distribution among those who", var_str, "Video Games")) +
+      theme_minimal() +  
+      geom_text(aes(label = round(prop, 2)), vjust = -0.5) 
+  )
+}
+
+# bar graph: gender
+female = create_bar(gender, "0", "Female")
+male = create_bar(gender, "1", "Male")
+
+disliked = create_bar2(gender, "0", c("female", "male"), "Disliked")
+liked = create_bar2(gender, "1", c("female", "male"), "Liked")
+
+(female + male) / (disliked + liked)
+
+# bar graph: Own Computer
+no_comp <- create_bar(own, "0", "Not Computer Owner")
+has_comp <- create_bar(own, "1", "Computer Owner")
+
+disliked = create_bar2(own, "0", c("no computer", "own computer"), "Disliked")
+liked = create_bar2(own, "1", c("no computer", "own computer"), "Liked")
+
+(no_comp + has_comp )/ (disliked + liked)
+
+# bar graph: Works
+not_worker <- create_bar(work, "0", "Not Employed")
+worker <- create_bar(work, "1", "Employed")
+
+disliked = create_bar2(work, "0", c("no work", "has work"), "Disliked")
+liked = create_bar2(own, "1", c("no work", "has work"), "Liked")
+(not_worker + worker) / (disliked + liked)
+```
+
+### 2.6: Grade Distribution
+
+```{r}
+obs_dist <- prop.table(table(data$grade))
+to_append <- c(0)
+names(to_append) <- c("1")
+obs_dist <- c(obs_dist, to_append)
+
+df <- data.frame(obs_dist, 
+                 letter_grade = c("C", "B", "A", "D or Lower"),
+                 exp_dist = c(.20, .30, .40, .10))
+df <- gather(df, key = "dist", value = "freq", -letter_grade)
+
+ggplot(df, aes(x = letter_grade, y = freq, fill = dist )) + 
+  geom_bar(stat = "identity", position = "dodge", col = "black")  +
+  scale_fill_brewer(palette = "Blues", 
+                    direction = -1, 
+                    name = "Distribution", 
+                    labels = c("Expected", "Observed")) + 
+  theme_minimal() +
+  xlab("Letter Grade") + ylab("Proportion") + 
+  ggtitle("Expected vs Observed Grade Distribution") + ylim(c(0, 0.7)) + 
+  geom_text(aes(label = round(freq, 2)), vjust = -0.5, position = position_dodge(0.9)) 
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
