@@ -10,13 +10,13 @@ library(ggplot2)
 library(patchwork)
 library(gmodels)
 library(tidyr)
+library(metRology)
 
 data <- read.table("videodata.txt", header=TRUE)
 data_pt2 <- read.table("videoMultiple.txt", header=TRUE)
 ```
 
-### 2.1 Point and Interval Estimates: Proportion of Students who Played Video Games Week Prior to Survey
-
+### 2.1 Fraction of Students who Played Video Games
 * Point Estimate: 0.374
 * Interval Estimate: (0.217, 0.53)
 ```{r}
@@ -41,7 +41,7 @@ width = z * sqrt( ( (xbar * (1- xbar) ) / (n-1) )
 int = c(xbar - width, xbar + width)
 ```
 
-### 2.2 Proportion of Students who Played Games vs. Reported Frequency of Play
+### 2.2 Fraction of Students who Played Games vs. Reported Frequency of Play
 
 ```{r}
 prop.table(table(data$freq))
@@ -49,7 +49,7 @@ expected_frac <- 0.3076923 + 0.0989011
 ```
 
 
-### 2.3 Point and Interval Estimates: Average Time Spent Playing Video Games
+### 2.3 Average Time Spent Playing Video Games
 
 * Point Estimate: 1.243
 * Interval Estimate: (0.684, 1.801)
@@ -78,21 +78,34 @@ for (i in 1:reps){
   xbar <- mean(resample)
   bootout[i] <- xbar
 }
+t <- rt.scaled(100000, df = 90, mean = xbar, sd = se)
+norm <- rnorm(100000, mean = xbar, sd = se)
+df = data.frame(bootout, t, norm)
 
-df = data.frame(bootout)
-ggplot(data = df, aes(x = bootout)) + geom_histogram(bins = 15) +
+bootout.int <- quantile(bootout, c(0.025, .975))
+
+ggplot(data = df, aes(x = bootout)) + 
+  geom_histogram(aes(y = ..density..), bins = 30, alpha = 0.5, fill = "firebrick4") +
   ggtitle("Distribution of Average Time Spent Playing Video Games") +
-  geom_vline(xintercept = int[1], linetype = "dashed", col = "aquamarine3") +
-  geom_vline(xintercept = int[2], linetype = "dashed", col = "aquamarine3") +
-  xlab("Hours Spent Playing Video Games")
+  geom_vline(xintercept = int[1], linetype = "dashed", col = "dodgerblue") +
+  geom_vline(xintercept = int[2], linetype = "dashed", col = "dodgerblue") +
+  geom_vline(xintercept = bootout.int[1], linetype = "dotted", col = "red") +
+  geom_vline(xintercept = bootout.int[2], linetype = "dotted", col = "red") +
+  xlab("Hours Spent Playing Video Games") +
+  geom_density(aes(x = t), col = "blue") + 
+  theme_minimal()
 
 quantile(bootout, c(0.025, .975))
 
 mean(bootout <= int[1] |  bootout >= int[2])
+
+# KS Test for T-Dist and Bootout
+ks.test(bootout, t)
+
 ```
 
 
-###2.4 Like/Dislike Games
+### 2.4 Reasons For Liking/Disliking Video Games
 
 ```{r}
 prop.table(table(data$like))
@@ -113,7 +126,7 @@ q1_props <- sort(colMeans(data_pt2[,q1], na.rm = T), decreasing = T)[1:5]
 q1_props <- round(q1_props, 2)
 labels <- c("Relaxation", "Feeling of Mastery", "Bored", "Graphics/Realism", "Mental Challenge")
 df <- data.frame(labels, q1_props, row.names = labels)
-ggplot(df, aes(x= labels, y = q1_props)) + 
+reasons_like <- ggplot(df, aes(x= reorder(labels, -q1_props), y = q1_props)) + 
   geom_bar(stat = "identity", fill = "steelblue") +
   geom_text(aes(label = q1_props), vjust = -0.5) +
   theme_minimal() +
@@ -126,11 +139,13 @@ q2_props <- round(q2_props, 2)
 
 labels <- c("Too much time", "Costs too Much", "Pointless", "Frustrating", "Too many rules")
 df <- data.frame(labels, q2_props)
-ggplot(df, aes(x= labels, y = q2_props)) + 
+reasons_dislike <- ggplot(df, aes(x= reorder(labels, -q2_props), y = q2_props)) + 
   geom_bar(stat = "identity", fill = "steelblue") +
   geom_text(aes(label = q2_props), vjust = -0.5) +
   theme_minimal() + ylim(c(0, 0.6))+
   xlab("") + ylab("Proportion") + ggtitle("What don't you like about video games?")
+
+reasons_like + reasons_dislike
 ```
 
 
@@ -138,14 +153,17 @@ ggplot(df, aes(x= labels, y = q2_props)) +
 ### 2.5 Differences Between Those Who Like and Dislike
 ``` {r}
 gender = CrossTable(data$enjoy, data$sex)
-math = CrossTable(data$math, data$enjoy)
 own = CrossTable(data$enjoy, data$own)
-home = CrossTable(data$home, data$enjoy)
 
 # create an indicator if someone is working
 data$works <- 0
 data$works[data$work > 0] <- 1
 work = CrossTable(data$enjoy, data$works)
+
+# prop tests to check statistical significance
+prop.test(table(data$enjoy, data$sex)[1:2,])
+prop.test(table(data$enjoy, data$sex)[1:2,])
+prop.test(table(data$works, data$enjoy)[,1:2])
 ```
 
 
@@ -206,7 +224,7 @@ liked = create_bar2(own, "1", c("no work", "has work"), "Liked")
 (not_worker + worker) / (disliked + liked)
 ```
 
-### 2.6: Grade Distribution
+### 2.6 Grade Distribution
 
 ```{r}
 obs_dist <- prop.table(table(data$grade))
@@ -216,20 +234,25 @@ obs_dist <- c(obs_dist, to_append)
 
 df <- data.frame(obs_dist, 
                  letter_grade = c("C", "B", "A", "D or Lower"),
-                 exp_dist = c(.20, .30, .40, .10))
+                 tar_dist = c(.20, .30, .40, .10))
 df <- gather(df, key = "dist", value = "freq", -letter_grade)
 
 ggplot(df, aes(x = letter_grade, y = freq, fill = dist )) + 
-  geom_bar(stat = "identity", position = "dodge", col = "black")  +
-  scale_fill_brewer(palette = "Blues", 
+  geom_bar(stat = "identity", position = "dodge")  +
+  scale_fill_brewer(palette = "Paired", 
                     direction = -1, 
                     name = "Distribution", 
-                    labels = c("Expected", "Observed")) + 
+                    labels = c("Expected", "Target")) + 
   theme_minimal() +
   xlab("Letter Grade") + ylab("Proportion") + 
-  ggtitle("Expected vs Observed Grade Distribution") + ylim(c(0, 0.7)) + 
+  ggtitle("Expected vs Target Grade Distribution") + ylim(c(0, 0.7)) + 
   geom_text(aes(label = round(freq, 2)), vjust = -0.5, position = position_dodge(0.9)) 
 
+
+# chisq test
+tar_dist = c(0.10, .20, .30, .40)
+obs_dist <- sort(c(table(data$grade), to_append))
+chisq.test(obs_dist, p= tar_dist, correct = F)
 
 ```
 
