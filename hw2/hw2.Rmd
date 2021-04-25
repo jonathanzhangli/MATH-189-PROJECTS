@@ -271,8 +271,8 @@ for (i in 1:dim(data)[1]) {
   }
 }
 # Converting to a column where 0 represents a student having a job
-videodata['ifwork'] <- rep (NA, dim(videodata)[1])
-for (i in 1:dim(videodata) [1]) {
+data['ifwork'] <- rep (NA, dim(data)[1])
+for (i in 1:dim(data) [1]) {
   work <- data[i, 'work']
   if (work > 0 & work != 99) {
     data[i, 'ifwork'] = 1
