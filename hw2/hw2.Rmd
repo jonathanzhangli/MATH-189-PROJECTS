@@ -256,6 +256,44 @@ chisq.test(obs_dist, p= tar_dist, correct = F)
 
 ```
 
+### 3 Advanced Analysis
+
+```{r}
+# Converting to a column where 0 represents a student liking videogames
+data['dislike'] <- rep(NA, dim(data)[1])
+for (i in 1:dim(data)[1]) {
+  like <- data[i, 'like']
+  if (like == 4 || like == 5) {
+    data[i, 'dislike'] = 0
+  }
+  if (like == 2 || like == 3) {
+    data[i, 'dislike'] = 1
+  }
+}
+# Converting to a column where 0 represents a student having a job
+videodata['ifwork'] <- rep (NA, dim(videodata)[1])
+for (i in 1:dim(videodata) [1]) {
+  work <- data[i, 'work']
+  if (work > 0 & work != 99) {
+    data[i, 'ifwork'] = 1
+  }
+  else{
+    data[i, 'ifwork'] = 0
+  }
+}
+
+chi_gender_dislike <- chisq.test(data$sex,data$dislike,correct = FALSE)
+chi_gender_dislike
+
+chi_ifwork_dislike <- chisq.test(data$ifwork,data$dislike,correct = FALSE)
+chi_ifwork_dislike
+
+chi_pc_dislike <- chisq.test(data$own,data$dislike,correct = FALSE)
+chi_pc_dislike
+
+```
+
+
 
 
 
