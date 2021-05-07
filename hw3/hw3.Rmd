@@ -5,7 +5,7 @@ date: "5/2/2021"
 output: html_document
 ---
 
-```{r}
+```{r, message = FALSE}
 library(ggplot2)
 library(lattice)
 library(patchwork)
@@ -17,17 +17,19 @@ data <- read.table("hcmv.txt", header = TRUE)
 ```
 
 
-### Question 1
+## Question 1: Random Scatters
 
 ``` {r}
 set.seed(2000)
 set1 <- sample.int(n = 229345, size = 296, replace = FALSE)
 set2 <- sample.int( n = 229345, size = 296, replace = FALSE)
 set3 <- sample.int(n = 229345, size = 296, replace = FALSE)
+set4 <- sample.int(n = 229345, size = 296, replace = FALSE)
+set5 <- sample.int(n = 229345, size = 296, replace = FALSE)
 real <- data$location
 
 # dataframe of random scatters
-random_scatters <- data.frame(set1, set2, set3, real)
+random_scatters <- data.frame(set1, set2, set3, set4, set5, real)
 
 # /////////////////////////////
 # VISUALIZE RANDOM SCATTERS
@@ -36,13 +38,13 @@ random_scatters <- data.frame(set1, set2, set3, real)
 # ==========
 # HISTOGRAM
 # =========
-binwidth = 3000
+binwidth = 4000
 
 random_hist <- function(set, binwidth) {
   ggplot(data = random_scatters, aes(x = set)) +
     geom_histogram(binwidth = binwidth, fill = "steelblue", color = "white") +
     ylab("Frequency") +
-    ylim (c(0, 15) )+ 
+    ylim (c(0, 20) )+ 
     xlab("Random") +
     theme_minimal()
 }
@@ -50,23 +52,27 @@ random_hist <- function(set, binwidth) {
 set1_p =  random_hist(set1, binwidth)
 set2_p =  random_hist(set2, binwidth)
 set3_p =  random_hist(set3, binwidth)
+set4_p =  random_hist(set4, binwidth)
+set5_p =  random_hist(set5, binwidth)
+
 real_p = ggplot(data = random_scatters, aes(x = real)) +
     geom_histogram(binwidth = binwidth, fill = "darkgoldenrod3", color = "white") +
     ylab("Frequency") +
     xlab("Palindrome")+
-    ylim (c(0, 15) )+ 
+    ylim (c(0, 20) )+ 
     theme_minimal()
 
-grid.arrange(set1_p, set2_p, set3_p, real_p, 
+grid.arrange(set1_p, set2_p, set3_p, set4_p, set5_p, real_p, 
              top = "Distribution of Locations")
 
 # declutter
-rm(set1_p, set2_p, set3_p, real_p)
-
+rm(set1_p, set2_p, set3_p, set4_p, set5_p, real_p)
 
 ```
-### Question 2: Location and Spacings
 
+## Question 2: Location and Spacings
+
+#### Consecutive Hits
 Comparing spaces between hits:
 
 ```{r}
@@ -86,48 +92,69 @@ spaces_scatter <- function(df, pos, set, ylim, col = "steelblue") {
     theme_minimal()
 }
 
+# create scatterplots
+spaces1 <- spaces_scatter(spaces_df, spaces_df$position, spaces_df$set1, ylim = 6000)
+spaces2 <- spaces_scatter(spaces_df, spaces_df$position, spaces_df$set2, ylim = 6000)
+spaces3 <- spaces_scatter(spaces_df, spaces_df$position, spaces_df$set3, ylim = 6000)
+spaces4 <- spaces_scatter(spaces_df, spaces_df$position, spaces_df$set4, ylim = 6000)
+spaces5 <- spaces_scatter(spaces_df, spaces_df$position, spaces_df$set5, ylim = 6000)
+spaces6 <- spaces_scatter(spaces_df, spaces_df$position, spaces_df$real, ylim = 6000, col = "darkgoldenrod3")
+
+# plot all four on single window
+grid.arrange(spaces1, spaces2, spaces3, spaces4, spaces5, spaces6, ncol = 2,
+             top = "Scatterplots of Consecutive Spaces")
+rm(spaces1, spaces2, spaces3, spaces4, spaces5, spaces6) # declutter
+```
+
+
+Look at the distribution of hits:
+
+```{r}
 # define histogram function
 spaces_hist <- function(df, set, binwidth, xlim, ylim, fill = "steelblue"){
   ggplot(data = df, aes(x = set)) + 
-    geom_histogram(binwidth = binwidth, fill = fill, col = "white") + 
+    geom_histogram(aes(y = ..density..), binwidth = binwidth, fill = fill, col = "white") + 
     xlim(0, xlim)  +
     ylim(0, ylim) +
     theme_minimal()
 } 
 
-# create scatterplots
-spaces1 <- spaces_scatter(spaces_df, spaces_df$position, spaces_df$set1, ylim = 6000)
-spaces2 <- spaces_scatter(spaces_df, spaces_df$position, spaces_df$set2, ylim = 6000)
-spaces3 <- spaces_scatter(spaces_df, spaces_df$position, spaces_df$set3, ylim = 6000)
-spaces4 <- spaces_scatter(spaces_df, spaces_df$position, spaces_df$real, ylim = 6000, col = "darkgoldenrod3")
+# create histogram
+hits <- spaces_hist(spaces_df, spaces_df$real, 100, x = 6000, y = 0.0015, fill = "darkgoldenrod3") +
+  stat_function(fun=dexp, args = list(rate = 1/mean(spaces_df$real))) +
+  geom_density(col = "orange") + 
+  geom_density(aes(x = set1), col = "dodgerblue") +
+  geom_density(aes(x = set2), col = "dodgerblue1") +
+  geom_density(aes(x = set3), col = "dodgerblue2") +
+  geom_density(aes(x = set4), col = "dodgerblue3") +
+  geom_density(aes(x = set5), col = "dodgerblue4") +
+  xlab("Consecutive Hits Spacings")
 
-# plot all four on single window
-grid.arrange(spaces1, spaces2, spaces3, spaces4, ncol = 2,
-             top = "Scatterplots of Consecutive Spaces")
-rm(spaces1, spaces2, spaces3, spaces4) # declutter
-
-# create histograms
-x = 6000
-y = 40
-spaces1 <- spaces_hist(spaces_df, spaces_df$set1, 100, x, y)
-spaces2 <- spaces_hist(spaces_df, spaces_df$set2, 100, x, y )
-spaces3 <- spaces_hist(spaces_df, spaces_df$set3, 100, x, y )
-spaces4 <- spaces_hist(spaces_df, spaces_df$real, 100, x, y, fill = "darkgoldenrod3")
-
-grid.arrange(spaces1, spaces2, spaces3, spaces4, ncol = 2,
-             top = "Histograms of Consecutive Spaces")
-rm(spaces1, spaces2, spaces3, spaces4) # declutter
-
-# In a homogenous poisson process, the hits follow a exponential distribution
-set1.p <- ks.test(spaces_df$set1, rexp(10000, 1/mean(spaces_df$set1)))$p
-set2.p <- ks.test(spaces_df$set2, rexp(10000, 1/mean(spaces_df$set2)))$p
-set3.p <- ks.test(spaces_df$set3, rexp(10000, 1/mean(spaces_df$set3)))$p
-set4.p <- ks.test(spaces_df$real, rexp(10000, 1/mean(spaces_df$real)))$p
-
-data.frame("set1" = set1.p, "set2" = set2.p, "set3" = set3.p, "real" = set4.p,
-           row.names = c("ks_pval"))
+hits
 ```
 
+
+Statistically compare to exponential using KS test:
+
+``` {r}
+# In a homogenous poisson process, the hits follow a exponential distribution
+set1.p <- ks.test(spaces_df$set1, pexp, 1/mean(spaces_df$set1))$p
+set2.p <- ks.test(spaces_df$set2, pexp, 1/mean(spaces_df$set2))$p
+set3.p <- ks.test(spaces_df$set3, pexp, 1/mean(spaces_df$set3))$p
+set4.p <- ks.test(spaces_df$set3, pexp, 1/mean(spaces_df$set4))$p
+set5.p <- ks.test(spaces_df$set3, pexp, 1/mean(spaces_df$set5))$p
+set6.p <- ks.test(spaces_df$real, pexp, 1/mean(spaces_df$real))$p
+
+data.frame("set1" = set1.p, "set2" = set2.p, 
+           "set3" = set3.p,"set4" = set4.p, "set5" = set5.p, "real" = set6.p,
+           row.names = c("ks_pval"))
+
+# de-clutter environment
+rm(set1.p, set2.p, set3.p, set4.p, set5.p, set6.p)
+```
+
+
+#### Consecutive Pairs
 Comparing spaces between consecutive pairs: distance between palindromes that are two hits apart. 
 ```{r}
 # ================================
@@ -137,6 +164,8 @@ Comparing spaces between consecutive pairs: distance between palindromes that ar
 sum_pairs <- data.frame("set1" = rep(NA, 295), 
                         "set2" = rep(NA, 295), 
                         "set3" = rep(NA, 295), 
+                        "set4" = rep(NA, 295),
+                        "set5" = rep(NA, 295),
                         "real" = rep(NA, 295))
 
 for (i in 1:295){
@@ -155,28 +184,49 @@ spaces4 <- spaces_scatter(spaces_pair, spaces_pair$position, spaces_pair$real, y
 grid.arrange(spaces1, spaces2, spaces3, spaces4, ncol = 2, 
              top = "Scatterplot of Consecutive Pair Spacings")
 rm(spaces1, spaces2, spaces3, spaces4) # declutter
-
-# create histograms
-x = 8000
-y = 20
-spaces1 <- spaces_hist(spaces_pair, spaces_pair$set1, 100, x, y)
-spaces2 <- spaces_hist(spaces_pair, spaces_pair$set2, 100, x, y)
-spaces3 <- spaces_hist(spaces_pair, spaces_pair$set3, 100, x, y)
-spaces4 <- spaces_hist(spaces_pair, spaces_pair$real, 100, x, y, fill = "darkgoldenrod3")
-
-grid.arrange(spaces1, spaces2, spaces3, spaces4, ncol = 2,
-             top = "Histogram of Consecutive Pair Spacings")
-rm(spaces1, spaces2, spaces3, spaces4) # declutter
-
-# ks-test
-set1.p <- ks.test(spaces_pair$set1, rgamma(10000, 2, 1/mean(spaces_df$set1)))$p
-set2.p <- ks.test(spaces_pair$set2, rgamma(10000, 2, 1/mean(spaces_df$set2)))$p
-set3.p <- ks.test(spaces_pair$set3, rgamma(10000, 2, 1/mean(spaces_df$set3)))$p
-set4.p <- ks.test(spaces_pair$real, rgamma(10000, 2, 1/mean(spaces_df$real)))$p
-
-data.frame("set1" = set1.p, "set2" = set2.p, "set3" = set3.p, "real" = set4.p,
-           row.names = c("ks_pval"))
+rm(i)
 ```
+
+Compare histograms between random hits and palindrome dataset.
+
+```{r, warning = F}
+# create histograms
+pair <- spaces_hist(spaces_pair, spaces_pair$real, 100, x = 6000, y = 0.0007, fill = "darkgoldenrod3") + 
+  stat_function(fun=dgamma, 
+                args = list(shape = 2, rate = 1/mean(spaces_df$real))) +
+  geom_density(col = "orange") + 
+  geom_density(aes(x = set1), col = "dodgerblue") +
+  geom_density(aes(x = set2), col = "dodgerblue1") +
+  geom_density(aes(x = set3), col = "dodgerblue2") +
+  geom_density(aes(x = set4), col = "dodgerblue3") +
+  geom_density(aes(x = set5), col = "dodgerblue4") +
+  xlab("Consecutive Pairs Spacings")
+
+pair
+```
+
+
+Compare to distribution:
+```{r, warning = F}
+# ks-test
+set1.p <- ks.test(spaces_pair$set1, pgamma, 2, 1/mean(spaces_df$set1))$p
+set2.p <- ks.test(spaces_pair$set2, pgamma, 2, 1/mean(spaces_df$set2))$p
+set3.p <- ks.test(spaces_pair$set3, pgamma, 2, 1/mean(spaces_df$set3))$p
+set4.p <- ks.test(spaces_pair$set3, pgamma, 2, 1/mean(spaces_df$set4))$p
+set5.p <- ks.test(spaces_pair$set3, pgamma, 2, 1/mean(spaces_df$set5))$p
+set6.p <- ks.test(spaces_pair$real, pgamma, 2, 1/mean(spaces_df$real))$p
+
+data.frame("set1" = set1.p, "set2" = set2.p, 
+           "set3" = set3.p,"set4" = set4.p, "set5" = set5.p, "real" = set6.p,
+           row.names = c("ks_pval"))
+
+rm(set1.p, set2.p, set3.p, set4.p, set5.p, set6.p)
+rm(sum_pairs)
+rm(spaces_pair)
+
+```
+
+### Consecutive Triplets
 
 ```{r}
 # ================================
@@ -185,6 +235,8 @@ data.frame("set1" = set1.p, "set2" = set2.p, "set3" = set3.p, "real" = set4.p,
 sum_triplets <- data.frame("set1" = rep(NA, 294), 
                         "set2" = rep(NA, 294), 
                         "set3" = rep(NA, 294), 
+                        "set4" = rep(NA, 294),
+                        "set5" = rep(NA, 294),
                         "real" = rep(NA, 294))
 
 for (i in 1:294){
@@ -203,25 +255,46 @@ spaces4 <- spaces_scatter(spaces_triplets, spaces_triplets$position, spaces_trip
 
 grid.arrange(spaces1, spaces2, spaces3, spaces4, ncol = 2)
 
+rm(spaces1, spaces2, spaces3, spaces4)
+rm(i)
+```
+
+
+Comparing histograms between random hits and palindrome dataset:
+
+```{r, warning = F}
 # create histograms
-x = 9000
-y = 20
-spaces1 <- spaces_hist(spaces_triplets, spaces_triplets$set1, 100, x, y)
-spaces2 <- spaces_hist(spaces_triplets, spaces_triplets$set2, 100, x, y)
-spaces3 <- spaces_hist(spaces_triplets, spaces_triplets$set3, 100, x, y)
-spaces4 <- spaces_hist(spaces_triplets, spaces_triplets$real, 100, x, y, fill = "darkgoldenrod3")
+triplets <- spaces_hist(spaces_triplets, spaces_triplets$real, 100, x = 9000, y = 0.0006, fill = "darkgoldenrod3") + 
+  stat_function(fun=dgamma, 
+                args = list(shape = 3, rate = 1/mean(spaces_df$real))
+  ) + 
+  geom_density(col = "orange") + 
+  geom_density(aes(x = set1), col = "dodgerblue") +
+  geom_density(aes(x = set2), col = "dodgerblue1") +
+  geom_density(aes(x = set3), col = "dodgerblue2") +
+  geom_density(aes(x = set4), col = "dodgerblue3") +
+  geom_density(aes(x = set5), col = "dodgerblue4") +
+  xlab("Consecutive Triplet Spacings")
 
-grid.arrange(spaces1, spaces2, spaces3, spaces4, ncol = 2)
-rm(spaces1, spaces2, spaces3, spaces4) # declutter
+triplets
+``` 
 
+
+Compare to distribution using KS statistic
+```{r}
 # ks-test
 set1.p <- ks.test(spaces_triplets$set1, rgamma(10000, 3, 1/mean(spaces_df$set1)))$p
 set2.p <- ks.test(spaces_triplets$set2, rgamma(10000, 3, 1/mean(spaces_df$set2)))$p
 set3.p <- ks.test(spaces_triplets$set3, rgamma(10000, 3, 1/mean(spaces_df$set3)))$p
-set4.p <- ks.test(spaces_triplets$real, rgamma(10000, 3, 1/mean(spaces_df$real)))$p
+set4.p <- ks.test(spaces_triplets$set4, rgamma(10000, 3, 1/mean(spaces_df$set3)))$p
+set5.p <- ks.test(spaces_triplets$set5, rgamma(10000, 3, 1/mean(spaces_df$set3)))$p
+set6.p <- ks.test(spaces_triplets$real, rgamma(10000, 3, 1/mean(spaces_df$real)))$p
 
-data.frame("set1" = set1.p, "set2" = set2.p, "set3" = set3.p, "real" = set4.p,
+data.frame("set1" = set1.p, "set2" = set2.p, "set3" = set3.p,"set4" = set4.p, "set5" = set5.p, "real" = set6.p,
            row.names = c("ks_pval"))
+
+rm(set1.p, set2.p, set3.p, set4.p, set5.p, set6.p)
+rm(spaces_triplets, sum_triplets, spaces_df, sorted_df)
 
 ```
 
@@ -234,40 +307,48 @@ Compare locations
 strip1 <- stripplot(set1, pch=16, cex=0.25, xlab = "Random")
 strip2 <- stripplot(set2, pch=16, cex=0.25, xlab = "Random")
 strip3 <- stripplot(set3, pch=16, cex=0.25, xlab = "Random")
-strip4 <- stripplot(real, pch=16, cex=0.25, col = "darkgoldenrod3", xlab = "Palindrome")
+strip4 <- stripplot(set4, pch=16, cex=0.25, xlab = "Random")
+strip5 <- stripplot(set5, pch=16, cex=0.25, xlab = "Random")
+strip6 <- stripplot(real, pch=16, cex=0.25, col = "darkgoldenrod3", xlab = "Palindrome")
 
-grid.arrange(strip1, strip2, strip3, strip4, ncol = 2, 
+grid.arrange(strip1, strip2, strip3, strip4, strip5, strip6, ncol = 2, 
              top = "Stripplot of Locations")
 
 #declutter
-rm(strip1, strip2, strip3, strip4)
+rm(strip1, strip2, strip3, strip4, strip5, strip6)
 ```
 
 
-### Question 3: Counts
+## Question 3: Counts
 ```{r}
 
 # GRAPHICAL METHODS
 
 set.seed(2000)
+binwidth = 3000
 n = 296 # sample size
 L = 229345 # total size
-M = 3000 # interval length
-n_int = as.integer(L / M) + 1
+M = binwidth # interval length
+x_lim = (as.integer(L/M) + 1) * M # xlim for hist
+n_int = x_lim/M
 
 # 1) Histogram of Counts vs Expected Uniform Distribution
 expected = n/n_int
+se = sqrt(expected / n)
 ggplot(data = random_scatters, aes(x = real)) +
     geom_histogram(binwidth = binwidth, fill = "darkgoldenrod3", color = "white") +
     ylab("Frequency") +
     xlab("Palindrome")+
-    ylim (c(0, 15) )+ 
+    ylim (c(0, 20) )+ 
     theme_minimal() + 
-    geom_abline(slope = 0, intercept = expected, color = "black")
+    geom_hline(yintercept = expected, color = "black") +
+    geom_hline(yintercept = expected + (3 * se), color = "darkgray", lty = "dashed") + 
+    geom_hline(yintercept = expected - (3 * se), color = "darkgray", lty = "dashed")
+
 
 # 2) Plot Residuals
-breaks <- seq(0, 231000, by = binwidth)
-counts <- hist(data$location, breaks)$counts
+breaks <- seq(0, x_lim, by = binwidth)
+counts <- hist(data$location, breaks, plot = F)$counts
 residuals <- (counts - expected) / sqrt(expected)
 to_plot <- data.frame(residuals)
 
@@ -280,12 +361,13 @@ ggplot(to_plot, aes(x = 1:n_int, y = residuals)) +
   theme_minimal()
 
 # 3) Number of Palindromes vs Number of Intervals
-pois_random <- rpois(n_int, lambda = mean(intv$n_palindrome))
+pois_random <- rpois(n_int, lambda = mean(counts))
 counts_df <- data.frame(counts, pois_random)
 to_plot <- gather(counts_df)
 
 ggplot(to_plot, aes(x= value)) + 
-  geom_histogram(aes(fill = key), alpha = 0.5, position = "identity") + 
+  geom_histogram(aes(fill = key), alpha = 0.5, position = "identity", 
+                 binwidth = 1, col = "white") + 
   geom_density(aes( y = ..count.., col = key)) +
   theme_minimal() +
   xlab("Number of Palindromes") +
@@ -294,17 +376,48 @@ ggplot(to_plot, aes(x= value)) +
   scale_color_discrete(name = "Distribution", labels = c("Observed Palindrome Locations", "Poisson"))
 ```
 
+Formal Statistical Methods
 ```{r}
-# FORMAL STATISTICAL METHODS
+# CHI-SQ TEST: test multiple interval lengths and see if chi-square analysis is consistent with each other
 
-# chi-sq test
-counts = as.vector(table(data$bin))
+# ---------------
+# binwidth = 4000
+xlim <- (as.integer(L/4000) + 1) * 4000
+n_int = xlim/4000
+expected = n/n_int
+breaks <- seq(0, xlim, by = 4000)
+counts <- hist(data$location, breaks, plot = F)$counts
+
 chisq.stat <- sum((counts - expected) ^ 2 / expected)
 d.f = n_int - 1 # uniform distribution so no additional parameters
 pval = 1 - pchisq(chisq.stat, df = d.f)
 
-# ks-test, number palindromes
-ks.test(intv$n_palindrome, ppois, lambda = mean(intv$n_palindrome))
+# ----------------
+# binwidth = 3000
+xlim <- (as.integer(L/3000) + 1) * 3000
+n_int = xlim/3000
+expected = n/n_int
+breaks <- seq(0, xlim, by = 3000)
+counts <- hist(data$location, breaks, plot = F)$counts
+
+chisq.stat <- sum((counts - expected) ^ 2 / expected)
+d.f = n_int - 1 # uniform distribution so no additional parameters
+pval = 1 - pchisq(chisq.stat, df = d.f)
+
+# ------------------
+# binwidth = 5000
+xlim <- (as.integer(L/5000) + 1) * 5000
+n_int = xlim/5000
+expected = n/n_int
+breaks <- seq(0, xlim, by = 5000)
+counts <- hist(data$location, breaks, plot = F)$counts
+
+chisq.stat <- sum((counts - expected) ^ 2 / expected)
+d.f = n_int - 1 # uniform distribution so no additional parameters
+pval = 1 - pchisq(chisq.stat, df = d.f)
+
+
+rm(d.f, i)
 
 ```
 
@@ -333,30 +446,36 @@ bin6 <- plot_bins(data, data$location, 7000)
 (bin1 + bin2)/(bin3 + bin4) / (bin5  + bin6) +
     plot_annotation(title = "Distribution of Locations Across Interval Length")
 
+rm(bin1, bin2, bin3, bin4, bin5, bin6)
 
+```
+
+```{r}
 # SIMULATION
 set.seed(2000)
 
+binwidth = 3000
 n = 296 # sample size
 L = 229345 # total size
-M = 3000 # interval length
+M = binwidth # interval length
 x_lim = (as.integer(L/M) + 1) * M # xlim for hist
 n_int = x_lim/M
-nreps = 1000
+nreps = 10000
 
 max.counts <- rep(NA, nreps)
+
 for (i in 1:nreps) {
-  X = sample(1:L, size = n, replace = F)
+  X = sample.int(n = L, size = n, replace = F)
   X.hist = hist(X, breaks = seq(0, x_lim, by = M), plot = F)
-  max.count[i] = max(X.hist$counts)
+  max.counts[i] = max(X.hist$counts)
 }
 
 # observed stat
-obs_max <- max(hist(data$location,  breaks = seq(0, 300000, by = M), plot = F)$counts)
+obs_max <- max(hist(data$location,  breaks = seq(0, x_lim, by = M), plot = F)$counts)
 
 # plot
 to_plot <- data.frame(max.counts)
-ggplot(data = to_plot, aes(x = max.count)) +
+ggplot(data = to_plot, aes(x = max.counts)) +
   geom_histogram(breaks = seq(6, 14, by = 1) , fill = "steelblue", col = "white") +
   theme_minimal() + 
   geom_vline(xintercept = obs_max, col = "goldenrod3", lty = "dashed") +
@@ -365,5 +484,45 @@ ggplot(data = to_plot, aes(x = max.count)) +
   ggtitle("Distribution of Max Counts")
 
 # pvalue
-mean(max.count >= obs_max)
+mean(max.counts >= obs_max)
+```
+
+
+### Second Largest Scatter
+```{r}
+# SIMULATION
+set.seed(2000)
+
+binwidth = 3000
+n = 296 # sample size
+L = 229345 # total size
+M = binwidth # interval length
+x_lim = (as.integer(L/M) + 1) * M # xlim for hist
+n_int = x_lim/M
+nreps = 10000
+
+second.counts <- rep(NA, nreps)
+
+for (i in 1:nreps) {
+  X = sample.int(n = L, size = n, replace = F)
+  X.hist = hist(X, breaks = seq(0, x_lim, by = M), plot = F)
+  second.counts[i] = sort(X.hist$counts, decreasing = T)[2]
+}
+
+# observed stat
+obs_second <- sort((hist(data$location,  breaks = seq(0, x_lim, by = M), plot = F)$counts), 
+                   decreasing = T)[2]
+
+# plot
+to_plot <- data.frame(second.counts)
+ggplot(data = to_plot, aes(x = second.counts)) +
+  geom_histogram(breaks = seq(6, 12, by = 1) , fill = "steelblue", col = "white") +
+  theme_minimal() + 
+  geom_vline(xintercept = obs_second, col = "goldenrod3", lty = "dashed") +
+  xlab("Second Largest Count") +
+  ylab("Frequency") +
+  ggtitle("Distribution of Second Largest Scatter")
+
+# pvalue
+mean(second.counts >= obs_second)
 ```
