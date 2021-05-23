@@ -1,6 +1,6 @@
 ---
 title: "Math 189 - HW 3"
-author: "Maya Lu"
+author: "Maya Lu and Jonathan Li"
 date: "5/2/2021"
 output: html_document
 ---
@@ -122,7 +122,7 @@ spaces_hist <- function(df, set, binwidth, xlim, ylim, fill = "steelblue"){
 # create histogram
 hits <- spaces_hist(spaces_df, spaces_df$real, 100, x = 6000, y = 0.0015, fill = "darkgoldenrod3") +
   stat_function(fun=dexp, args = list(rate = 1/mean(spaces_df$real))) +
-  geom_density(col = "orange") + 
+  geom_density(col = "red") + 
   geom_density(aes(x = set1), col = "dodgerblue") +
   geom_density(aes(x = set2), col = "dodgerblue1") +
   geom_density(aes(x = set3), col = "dodgerblue2") +
@@ -194,7 +194,7 @@ Compare histograms between random hits and palindrome dataset.
 pair <- spaces_hist(spaces_pair, spaces_pair$real, 100, x = 6000, y = 0.0007, fill = "darkgoldenrod3") + 
   stat_function(fun=dgamma, 
                 args = list(shape = 2, rate = 1/mean(spaces_df$real))) +
-  geom_density(col = "orange") + 
+  geom_density(col = "red") + 
   geom_density(aes(x = set1), col = "dodgerblue") +
   geom_density(aes(x = set2), col = "dodgerblue1") +
   geom_density(aes(x = set3), col = "dodgerblue2") +
@@ -268,7 +268,7 @@ triplets <- spaces_hist(spaces_triplets, spaces_triplets$real, 100, x = 9000, y 
   stat_function(fun=dgamma, 
                 args = list(shape = 3, rate = 1/mean(spaces_df$real))
   ) + 
-  geom_density(col = "orange") + 
+  geom_density(col = "red") + 
   geom_density(aes(x = set1), col = "dodgerblue") +
   geom_density(aes(x = set2), col = "dodgerblue1") +
   geom_density(aes(x = set3), col = "dodgerblue2") +
@@ -294,8 +294,13 @@ data.frame("set1" = set1.p, "set2" = set2.p, "set3" = set3.p,"set4" = set4.p, "s
            row.names = c("ks_pval"))
 
 rm(set1.p, set2.p, set3.p, set4.p, set5.p, set6.p)
-rm(spaces_triplets, sum_triplets, spaces_df, sorted_df)
 
+```
+
+```{r}
+rm(set1.p, set2.p, set3.p, set4.p, set5.p, set6.p)
+rm(spaces_triplets, sum_triplets, spaces_df, sorted_df)
+rm(sorted_df, spaces_df, spaces_triplets, sum_triplets, triplets, pair, hits )
 ```
 
 Compare locations
@@ -321,7 +326,6 @@ rm(strip1, strip2, strip3, strip4, strip5, strip6)
 
 ## Question 3: Counts
 ```{r}
-
 # GRAPHICAL METHODS
 
 set.seed(2000)
@@ -329,8 +333,8 @@ binwidth = 3000
 n = 296 # sample size
 L = 229345 # total size
 M = binwidth # interval length
-x_lim = (as.integer(L/M) + 1) * M # xlim for hist
-n_int = x_lim/M
+xlim = (as.integer(L/M) + 1) * M # xlim for hist
+n_int = xlim/M
 
 # 1) Histogram of Counts vs Expected Uniform Distribution
 expected = n/n_int
@@ -344,10 +348,13 @@ ggplot(data = random_scatters, aes(x = real)) +
     geom_hline(yintercept = expected, color = "black") +
     geom_hline(yintercept = expected + (3 * se), color = "darkgray", lty = "dashed") + 
     geom_hline(yintercept = expected - (3 * se), color = "darkgray", lty = "dashed")
+```
 
+
+```{r}
 
 # 2) Plot Residuals
-breaks <- seq(0, x_lim, by = binwidth)
+breaks <- seq(0, xlim, by = binwidth)
 counts <- hist(data$location, breaks, plot = F)$counts
 residuals <- (counts - expected) / sqrt(expected)
 to_plot <- data.frame(residuals)
@@ -360,10 +367,16 @@ ggplot(to_plot, aes(x = 1:n_int, y = residuals)) +
   ggtitle("Residual Plot") + 
   theme_minimal()
 
+rm(residuals)
+```
+
+```{r}
 # 3) Number of Palindromes vs Number of Intervals
 pois_random <- rpois(n_int, lambda = mean(counts))
 counts_df <- data.frame(counts, pois_random)
 to_plot <- gather(counts_df)
+lambda = n/n_int
+
 
 ggplot(to_plot, aes(x= value)) + 
   geom_histogram(aes(fill = key), alpha = 0.5, position = "identity", 
@@ -374,6 +387,16 @@ ggplot(to_plot, aes(x= value)) +
   ylab("Number of Intervals") +
   scale_fill_discrete(name = "Distribution", labels = c("Observed Palindrome Locations", "Poisson")) +
   scale_color_discrete(name = "Distribution", labels = c("Observed Palindrome Locations", "Poisson"))
+
+plot(
+    x = dpois( x = 0:14, lambda),
+    type = "line"
+  )
+
+lines(density(
+  counts_df$counts, 
+), col = "blue", add = TRUE)
+  
 ```
 
 Formal Statistical Methods
@@ -386,11 +409,12 @@ xlim <- (as.integer(L/4000) + 1) * 4000
 n_int = xlim/4000
 expected = n/n_int
 breaks <- seq(0, xlim, by = 4000)
-counts <- hist(data$location, breaks, plot = F)$counts
+counts4000 <- hist(data$location, breaks, plot = F)$counts
 
 chisq.stat <- sum((counts - expected) ^ 2 / expected)
 d.f = n_int - 1 # uniform distribution so no additional parameters
 pval = 1 - pchisq(chisq.stat, df = d.f)
+rm(xlim, n_int, expected, breaks, counts4000, d.f)
 
 # ----------------
 # binwidth = 3000
@@ -398,11 +422,13 @@ xlim <- (as.integer(L/3000) + 1) * 3000
 n_int = xlim/3000
 expected = n/n_int
 breaks <- seq(0, xlim, by = 3000)
-counts <- hist(data$location, breaks, plot = F)$counts
+counts3000 <- hist(data$location, breaks, plot = F)$counts
+
 
 chisq.stat <- sum((counts - expected) ^ 2 / expected)
 d.f = n_int - 1 # uniform distribution so no additional parameters
 pval = 1 - pchisq(chisq.stat, df = d.f)
+rm(xlim, n_int, expected, breaks, counts3000, d.f)
 
 # ------------------
 # binwidth = 5000
@@ -410,15 +436,37 @@ xlim <- (as.integer(L/5000) + 1) * 5000
 n_int = xlim/5000
 expected = n/n_int
 breaks <- seq(0, xlim, by = 5000)
-counts <- hist(data$location, breaks, plot = F)$counts
+counts5000 <- hist(data$location, breaks, plot = F)$counts
+
 
 chisq.stat <- sum((counts - expected) ^ 2 / expected)
 d.f = n_int - 1 # uniform distribution so no additional parameters
 pval = 1 - pchisq(chisq.stat, df = d.f)
+rm(xlim, n_int, expected, breaks, counts5000, d.f)
 
 
-rm(d.f, i)
+```
 
+Does the distribution of counts follow a poisson distribution:
+```{r}
+# divide counts into 0, 1, 2, 3, 4, 5, 6, 7, ,8, >=9
+counts_df$truncated <- counts_df$counts
+counts_df$truncated[counts_df$counts >= 9] <- ">=9"
+counts_df$truncated <- as.character(counts_df$truncated)
+lvls = c("0", "1", "2", "3", "4", "5", "6", "7", "8", ">=9")
+counts_df$truncated <- ordered(counts_df$truncated, levels = lvls)
+
+# get counts of counts
+counts <- as.vector(table(counts_df$truncated))
+
+# get expected poisson distribution
+xlim <- (as.integer(L/3000) + 1) * 3000
+n_int = xlim/3000
+lambda = n/n_int
+exp_pois <- c(dpois(0:(8), lambda), 1-sum(dpois(0:(8),lambda)))
+
+# chi-sq test
+chisq.test(x = counts, p = exp_pois, simulate.p.value = T, B = 10000)
 ```
 
 ### Question 4: The Largest Scatter
@@ -458,20 +506,20 @@ binwidth = 3000
 n = 296 # sample size
 L = 229345 # total size
 M = binwidth # interval length
-x_lim = (as.integer(L/M) + 1) * M # xlim for hist
-n_int = x_lim/M
+xlim = (as.integer(L/M) + 1) * M # xlim for hist
+n_int = xlim/M
 nreps = 10000
 
 max.counts <- rep(NA, nreps)
 
 for (i in 1:nreps) {
   X = sample.int(n = L, size = n, replace = F)
-  X.hist = hist(X, breaks = seq(0, x_lim, by = M), plot = F)
+  X.hist = hist(X, breaks = seq(0, xlim, by = M), plot = F)
   max.counts[i] = max(X.hist$counts)
 }
 
 # observed stat
-obs_max <- max(hist(data$location,  breaks = seq(0, x_lim, by = M), plot = F)$counts)
+obs_max <- max(hist(data$location,  breaks = seq(0, xlim, by = M), plot = F)$counts)
 
 # plot
 to_plot <- data.frame(max.counts)
@@ -497,20 +545,20 @@ binwidth = 3000
 n = 296 # sample size
 L = 229345 # total size
 M = binwidth # interval length
-x_lim = (as.integer(L/M) + 1) * M # xlim for hist
-n_int = x_lim/M
+xlim = (as.integer(L/M) + 1) * M # xlim for hist
+n_int = xlim/M
 nreps = 10000
 
 second.counts <- rep(NA, nreps)
 
 for (i in 1:nreps) {
   X = sample.int(n = L, size = n, replace = F)
-  X.hist = hist(X, breaks = seq(0, x_lim, by = M), plot = F)
+  X.hist = hist(X, breaks = seq(0, xlim, by = M), plot = F)
   second.counts[i] = sort(X.hist$counts, decreasing = T)[2]
 }
 
 # observed stat
-obs_second <- sort((hist(data$location,  breaks = seq(0, x_lim, by = M), plot = F)$counts), 
+obs_second <- sort((hist(data$location,  breaks = seq(0, xlim, by = M), plot = F)$counts), 
                    decreasing = T)[2]
 
 # plot

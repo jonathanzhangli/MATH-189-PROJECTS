@@ -1,0 +1,298 @@
+---
+title: "MATH 189 - Homework 4"
+author: "Maya Lu"
+date: "5/14/2021"
+output: html_document
+---
+
+Load Dataset and packages
+```{r}
+gauge <- read.table("gauge.txt", head = T)
+```
+
+## Question 1: Raw Data
+```{r}
+# fit data
+mod1 <- lm(gain ~ density, data = gauge)
+
+# plot fitted line
+plot(x = gauge$density, y = gauge$gain, main = "Density vs Gain",
+     xlab = "density", ylab = "gain")
+abline(mod1, col = "blue")
+
+# R-squared value
+summary(mod1)$r.squared #0.8156974
+```
+
+Residual plot
+```{r}
+# residual plot
+plot(residuals(mod1) ~ density, data = gauge, main = "Residual Plot (Degree = 1)",
+     xlab = "density", ylab = "Residuals")
+abline(0,0)
+
+# normality of residuals
+hist(residuals(mod1), main ="Normality of Residuals", xlab = "Residuals")
+qqnorm(residuals(mod1), 
+       main = "Normality of Residual Plot", 
+       xlab = "Normal Distribution", ylab = "Residual Distribution")
+qqline(residuals(mod1))
+```
+
+## Question 2
+
+Transformation
+```{r}
+# fit model
+gauge$log_gain <- log(gauge$gain)
+mod2 <- lm(log_gain ~ density, data = gauge)
+
+# plot
+plot(x = gauge$density, y = gauge$log_gain, main = "Density vs Log(Gain)",
+     xlab = "density", ylab = "log(gain)")
+lines(predict(mod2) ~ density, data=gauge, col='blue', lwd=2)
+rsq = round(summary(mod2)$r.squared, 3)
+text(0.6, 5, labels =  paste("R-squared:", rsq))
+rm(rsq)
+```
+
+
+```{r}
+#residual plot - check linearity 
+plot(residuals(mod2) ~ density, data = gauge, main = "Residual Plot",
+     xlab = "density", ylab = "Residuals")
+abline(0,0)
+
+# normality of residuals - check equal variance(homoscedacidity) & nearly normal residuals
+hist(residuals(mod2), main ="Normality of Residuals", xlab = "Residuals")
+qqnorm(residuals(mod2), 
+       main = "Normality of Residual Plot", 
+       xlab = "Normal Distribution", ylab = "Residual Distribution")
+qqline(residuals(mod2))
+```
+
+#Question 3: Robustness
+```{r}
+
+# boostrap simulation to evaluate if our model is better fit than model with random error
+B = 1000
+rsqs <- rep(NA, B)
+for (i in 1:B){
+  # generate random error
+  gauge$density_adj <- abs(jitter(gauge$density))
+  
+  # train model
+  mod_adj <- lm(log_gain ~ density_adj, data = gauge)
+  
+  #find r-squared stat of model
+  rsq <- summary(mod_adj)$r.squared
+  rsqs[i] <- rsq
+}
+
+# find p-value
+obs <- summary(mod2)$r.squared
+mean(rsqs >= obs) # pvalue = 0.001
+
+# plot
+hist(rsqs, main = "Distribution of R-Square Statistic", xlab = "R-squared")
+abline(v = obs)
+
+rm(obs, i, rsq, B)
+```
+
+
+
+
+
+```{r}
+# introduce error into density data
+err = runif( n = nrow(gauge), min = -0.01, max = 0.01)
+gauge$density_adj = gauge$density + err
+gauge$density_adj[gauge$density_ajj < 0] = 0
+
+# fit model
+mod_adj <- lm(log_gain ~ density_adj, data = gauge)
+plot(x = gauge$density_adj, y = gauge$log_gain , main = "Density with Random Error vs log(Gain)",
+     xlab = "density", 
+     ylab = "log(gain)")
+lines(predict(mod_adj) ~ density_adj, data=gauge, col='blue', lwd=2)
+rsq = round(summary(mod_adj)$r.squared, 3)
+text(0.6, 5, labels =  paste("R-squared:", rsq))
+
+rm(rsq)
+```
+
+
+# Question 4: Forward Prediction
+```{r}
+summary(mod2)
+pred.bands = data.frame(predict(mod2, newdata = gauge, interval = 'prediction'))
+ranges = exp(pred.bands$upr) - exp(pred.bands$lwr)
+log_ranges = pred.bands$upr - pred.bands$lwr
+ranges
+plot(x = gauge$gain, y = log_ranges,
+     xlab = "gain", 
+     ylab = "prediction interval range", 
+     main = "Prediction Interval Range over Gain (Scale = Log(gain))")
+plot(x = gauge$gain, y = ranges,
+     xlab = "gain", 
+     ylab = "prediction interval range", 
+     main = "Prediction Interval Range over Gain (Scale = Gain)")
+```
+
+
+
+```{r}
+to_predict <- data.frame(
+  density= c( 0.508, 0.001),
+  avg_gain = c(38.6, 426.7)
+) 
+
+# predict
+for_pred = predict(mod2, newdata = to_predict, interval = "predict") #prediction interval
+for_pred = round(for_pred, 2)
+
+# put into dataframe to better compare
+to_predict$pred_gain <- exp(for_pred[,1])
+to_predict$lower <- exp(for_pred[,2])
+to_predict$upper <- exp(for_pred[,3])
+to_predict$range <- to_predict$upper - to_predict$lower 
+to_predict
+```
+
+# Question 5: Backwards Prediction
+```{r}
+calibrate <- function(gain) {
+  return(1.302073- (0.2171109 * log(gain)))
+}
+
+# prediction intervals for 38.6 gain
+calibrate(38.6) # point estimate
+
+new_y <- exp(predict(mod2, newdata = data.frame(density = 0.5089121), interval = "prediction"))
+c(calibrate(44.2), calibrate(33.7)) # prediction interval
+
+# prediction intervals for 426.7 gain
+calibrate(426.7) #point estimate
+
+for_pred <- predict(mod2, newdata = data.frame(density = -0.01276824), interval = "prediction")
+int = c(calibrate(exp(for_pred[3])), calibrate(exp(for_pred[2])))
+```
+
+
+
+```{r}
+plot(x = gauge$log_gain, y = gauge$density)
+abline(a = 1.3, b = -0.22, col = "blue")
+```
+
+
+## Question 6: Cross Validation
+```{r}
+# Gain: 38.6, Density: 0.508
+gauge_cv <- subset(gauge, !(density == 0.508))
+mod4 <- lm(log_gain ~ density, data = gauge_cv)
+summary(mod4)
+
+# define calibration model
+calibrate_cv <- function(gain){
+  return(1.302834 - (0.2172425 * log(gain)))
+}
+plot(gauge_cv$log_gain, gauge_cv$density)
+abline(1.302, -0.2172, col = "blue")
+
+# point estimate
+calibrate_cv(38.6) #0.5091923
+
+# prediction estimate
+to_predict = data.frame(density = calibrate_cv(38.6))
+for_pred = predict(mod4, to_predict , interval = "prediction")
+int = c(calibrate(exp(for_pred[3])), calibrate(exp(for_pred[2])))
+#-----
+# Gain: 426.7, Density: 0.001
+gauge_cv <- subset(gauge, !(density == 0.001))
+mod4 <- lm(log_gain ~ density, data = gauge_cv)
+summary(mod4)
+
+# define calibration model
+calibrate_cv <- function(gain){
+  return(1.314813 - ( 0.220494 * log(gain)))
+}
+plot(gauge_cv$log_gain, gauge_cv$density)
+abline(1.314813, - 0.220494, col = "blue")
+
+# point estimate
+calibrate_cv(426.7)
+
+# prediction estimate
+to_predict = data.frame(density = calibrate_cv(426.7))
+for_pred = predict(mod4, to_predict , interval = "prediction")
+int = c(calibrate(exp(for_pred[3])), calibrate(exp(for_pred[2])))
+```                   
+            
+
+## Advanced Analysis
+1) select model
+```{r}
+# cross validation to determine polynomial degree with lowest mse
+
+# cv function - finds mse
+# @d: polynomial degree
+# @returns: cv mse of polynomial degree
+cv_error <- function(d){
+  # create a vector that assigns each observation to a group
+  folds = unique(gauge$density)
+  cv.mse <- rep(NA, length(folds))
+  
+  for (grp in 1:length(folds)){
+    # indexes for the test set  
+    test_idx <- which(gauge$density == folds[grp])
+
+    # training set
+    train <- gauge[-test_idx,]
+    
+    #create model
+    mod <- lm(gain ~ poly(density, d, raw = TRUE), data = train)
+    
+    # predict onto test set
+    test = gauge[test_idx,]
+    y = gauge$gain[test_idx]
+    yhat = predict(mod, newdata = test)
+
+    # assign to mse vector
+    cv.mse[grp] <- mean((y - yhat)^2)
+  }
+  
+  return(mean(cv.mse))
+}
+
+# model selection
+d_max <- 7
+cv.mse <- rep(NA, d_max)
+for (d in 1:d_max){
+  cv.mse[d] <- cv_error(d)
+}
+
+cv.mse 
+# declutter
+rm(d_max, d)
+```
+
+2) Train & Plot
+```{r}
+mod5 <- lm(gain ~ poly(density, 3, raw = TRUE), gauge)
+plot(gauge$density, gauge$gain, 
+     xlab = "density", 
+     ylab = "gain",
+     main = "Predicted Gains Across Densities (Degree = 3)")
+lines(predict(mod5)~density, data = gauge, col = "blue")
+
+preds <- predict(mod5, newdata = data.frame(density = seq(0, 1, .01)))
+plot(seq(0, 1,.01), preds , 
+     xlab = "density", 
+     ylab = "gain",
+     main = "Predicted Gains across Densities (Degree = 3)")
+```
+
+
+
